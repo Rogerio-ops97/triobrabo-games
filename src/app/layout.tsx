@@ -3,6 +3,7 @@ import { Inter,Manrope } from "next/font/google";
 import "./globals.css";
 import "./brand.css";
 import "./premium.css";
+import "./modal.css";
 import { MobileBackGesture } from "@/components/mobile-back-gesture";
 import { DeviceLayoutDetector } from "@/components/device-layout";
 const inter=Inter({subsets:["latin"],variable:"--font-body"}); const manrope=Manrope({subsets:["latin"],variable:"--font-display"});
