@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { sendPush } from "@/lib/push";
 import type { Game } from "@/lib/types";
 
@@ -14,7 +15,7 @@ async function synchronize(request:NextRequest){
  const db=createClient(url,key,{global:{headers:{"x-sync-secret":secret}},auth:{persistSession:false}});const ids=eligible.map(item=>`gamerpower:${item.id}`);const {data:known}=await db.from("games").select("source_id").in("source_id",ids);const knownIds=new Set((known||[]).map(row=>row.source_id));
  const rows=eligible.map(item=>({source_id:`gamerpower:${item.id}`,slug:`${slugify(item.title)}-${item.id}`,title:item.title,store:storeName(item.platforms),description:item.description.slice(0,500),image_url:item.image||item.thumbnail,claim_url:item.open_giveaway_url,original_price:Number(item.worth.replace(/[^0-9.]/g,"")),starts_at:new Date(item.published_date).toISOString(),ends_at:item.end_date==="N/A"?new Date(Date.now()+30*864e5).toISOString():new Date(item.end_date).toISOString(),genres:["Jogo grátis"],featured:false,is_active:true}));
  const {data:stored,error}=await db.from("games").upsert(rows,{onConflict:"source_id"}).select("*");if(error)throw error;const fresh=(stored||[]).filter(game=>!knownIds.has(game.source_id)&&Number(game.original_price)>0) as Game[];let sent=0;for(const game of fresh){const result=await sendPush(game);sent+=result.sent;await db.from("games").update({notified_at:new Date().toISOString()}).eq("id",game.id)}
- return Response.json({ok:true,checked:offers.length,eligible:eligible.length,newGames:fresh.length,notifications:sent,source:"GamerPower"});
+ revalidatePath("/");return Response.json({ok:true,checked:offers.length,eligible:eligible.length,newGames:fresh.length,notifications:sent,source:"GamerPower"});
 }
 export async function GET(request:NextRequest){try{return await synchronize(request)}catch(error){console.error(error);return Response.json({error:"Falha na sincronização"},{status:500})}}
 export async function POST(request:NextRequest){return GET(request)}
