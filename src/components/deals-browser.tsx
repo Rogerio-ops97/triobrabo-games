@@ -185,9 +185,18 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                       <span>{deal.store}</span>
                       <small>Ativa na {deal.activation}</small>
                     </div>
-                    <h3>
-                      <Link href={`/ofertas/${deal.appId}`}>{deal.title}</Link>
-                    </h3>
+                    <div className="deal-title-row">
+                      <Image
+                        src={deal.imageUrl}
+                        alt=""
+                        width={88}
+                        height={50}
+                        loading="eager"
+                      />
+                      <h3>
+                        <Link href={`/ofertas/${deal.appId}`}>{deal.title}</Link>
+                      </h3>
+                    </div>
                     <div className="deal-price">
                       <div>
                         <s>{brl.format(deal.originalPrice)}</s>
