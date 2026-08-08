@@ -3,6 +3,7 @@ import { Inter,Manrope } from "next/font/google";
 import "./globals.css";
 import "./brand.css";
 import "./premium.css";
+import "./catalog.css";
 import "./modal.css";
 import "./intro-guide.css";
 import { MobileBackGesture } from "@/components/mobile-back-gesture";

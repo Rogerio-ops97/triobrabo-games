@@ -1,3 +1,20 @@
 import type { NextConfig } from "next";
-const nextConfig: NextConfig = { images: { remotePatterns: [{ protocol: "https", hostname: "images.igdb.com" }, { protocol: "https", hostname: "cdn.akamai.steamstatic.com" }, { protocol: "https", hostname: "cdn.cloudflare.steamstatic.com" }, { protocol: "https", hostname: "shared.fastly.steamstatic.com" }, { protocol: "https", hostname: "shared.akamai.steamstatic.com" }, { protocol: "https", hostname: "www.gamerpower.com" }] } };
+
+const hosts = [
+  "assets.isthereanydeal.com",
+  "dbxce1spal1df.cloudfront.net",
+  "images.igdb.com",
+  "cdn.akamai.steamstatic.com",
+  "cdn.cloudflare.steamstatic.com",
+  "shared.fastly.steamstatic.com",
+  "shared.akamai.steamstatic.com",
+  "www.gamerpower.com",
+];
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: hosts.map((hostname) => ({ protocol: "https" as const, hostname })),
+  },
+};
+
 export default nextConfig;

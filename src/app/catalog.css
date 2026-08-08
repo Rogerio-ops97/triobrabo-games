@@ -1,0 +1,24 @@
+.catalog-placeholder {
+  width: 150px;
+  height: 57px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #20232c, #13151b);
+  display: grid;
+  place-items: center;
+  color: var(--lime);
+}
+.catalog-placeholder svg { width: 24px; }
+.detail-cover-placeholder {
+  min-height: 320px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: radial-gradient(circle at center, rgba(200,255,61,.12), transparent 45%), var(--panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+}
+.detail-cover-placeholder svg { width: 48px; height: 48px; color: var(--lime); }
+@media (max-width: 650px) { .catalog-placeholder { width: 92px; height: 48px; } }

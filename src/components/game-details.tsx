@@ -19,6 +19,7 @@ const brl = new Intl.NumberFormat("pt-BR", {
 });
 export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: StoreOffer[] }) {
   const [saved, setSaved] = useState(false);
+  const gameKey = game.catalogId ?? String(game.appId);
   useEffect(() => {
     queueMicrotask(() => {
       try {
@@ -26,23 +27,25 @@ export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: 
           (
             JSON.parse(
               localStorage.getItem("triobrabo:deal-wishlist") || "[]",
-            ) as number[]
-          ).includes(game.appId),
+            ) as string[]
+          ).includes(gameKey),
         );
       } catch {}
     });
-  }, [game.appId]);
+  }, [gameKey]);
   const toggle = () => {
     const current = JSON.parse(
       localStorage.getItem("triobrabo:deal-wishlist") || "[]",
-    ) as number[];
-    const next = current.includes(game.appId)
-      ? current.filter((id) => id !== game.appId)
-      : [...current, game.appId];
+    ) as string[];
+    const next = current.includes(gameKey)
+      ? current.filter((id) => id !== gameKey)
+      : [...current, gameKey];
     localStorage.setItem("triobrabo:deal-wishlist", JSON.stringify(next));
-    setSaved(next.includes(game.appId));
+    setSaved(next.includes(gameKey));
   };
-  const steamUrl = `https://store.steampowered.com/app/${game.appId}/?cc=BR&l=brazilian`;
+  const primaryUrl = game.appId
+    ? `https://store.steampowered.com/app/${game.appId}/?cc=BR&l=brazilian`
+    : offers[0]?.url ?? game.website;
   return (
     <>
       <SiteHeader />
@@ -76,8 +79,8 @@ export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: 
               </div>
             ) : null}
             <div className="detail-actions">
-              <a href={steamUrl} target="_blank" rel="noreferrer">
-                Ver na Steam
+              <a href={primaryUrl} target="_blank" rel="noreferrer">
+                {game.appId ? "Ver na Steam" : "Ver melhor preço"}
                 <ArrowUpRight />
               </a>
               <button onClick={toggle}>
@@ -98,13 +101,13 @@ export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: 
               </button>
             </div>
           </div>
-          <Image
+          {game.headerImage ? <Image
             src={game.headerImage}
             alt={`Capa de ${game.name}`}
             width={920}
             height={430}
             priority
-          />
+          /> : <div className="detail-cover-placeholder"><Store /><span>Imagem indisponível</span></div>}
         </section>
         <section className="offer-compare">
           <div>
@@ -138,7 +141,7 @@ export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: 
                   ? "Grátis"
                   : brl.format(game.currentPrice)}
             </b>
-            <a href={steamUrl} target="_blank" rel="noreferrer">
+            <a href={primaryUrl} target="_blank" rel="noreferrer">
               Ir à loja <ArrowUpRight />
             </a>
           </article> : null}

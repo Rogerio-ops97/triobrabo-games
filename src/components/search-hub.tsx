@@ -13,7 +13,7 @@ import type { Deal } from "@/lib/deals";
 import type { Game } from "@/lib/types";
 import { SiteHeader } from "./site-header";
 type CatalogItem = {
-  id: number;
+  id: string;
   title: string;
   imageUrl: string;
   currentPrice: number | null;
@@ -21,7 +21,6 @@ type CatalogItem = {
   discount: number;
   metascore: string | null;
   platforms: string[];
-  url: string;
 };
 const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -97,7 +96,7 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
             {loading ? <LoaderCircle className="search-loading" /> : null}
           </label>
           <small className="search-help">
-            Pesquise por pelo menos duas letras. Resultados do catálogo Steam.
+            Pesquise por pelo menos duas letras. Catálogo de jogos em várias lojas de PC.
           </small>
         </section>
         {term.length >= 2 ? (
@@ -122,12 +121,12 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
                     className="catalog-item"
                     key={item.id}
                   >
-                    <Image
+                    {item.imageUrl ? <Image
                       src={item.imageUrl}
                       alt={`Capa de ${item.title}`}
                       width={231}
                       height={87}
-                    />
+                    /> : <span className="catalog-placeholder"><Gamepad2 /></span>}
                     <div>
                       <strong>{item.title}</strong>
                       <small>

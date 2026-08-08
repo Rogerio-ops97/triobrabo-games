@@ -59,7 +59,8 @@ export async function getBrazilianDeals(): Promise<Deal[]> {
 }
 
 export type SteamGameDetails = {
-  appId: number;
+  appId: number | null;
+  catalogId?: string;
   name: string;
   shortDescription: string;
   headerImage: string;
@@ -73,6 +74,17 @@ export type SteamGameDetails = {
   originalPrice: number | null;
   currentPrice: number | null;
   discount: number;
+};
+type ItadAssets = Partial<Record<"boxart" | "banner145" | "banner300" | "banner400" | "banner600", string>>;
+type ItadGame = {
+  id: string;
+  title: string;
+  type: string;
+  assets?: ItadAssets;
+  appid?: number | null;
+  tags?: string[];
+  developers?: Array<{ name: string }>;
+  publishers?: Array<{ name: string }>;
 };
 export type StoreOffer = {
   shop: string;
@@ -99,6 +111,16 @@ export async function getMultiStoreOffers(title: string): Promise<StoreOffer[]> 
     const ids = (await lookup.json()) as Record<string, string | null>;
     const id = ids[title];
     if (!id) return [];
+    return getMultiStoreOffersById(id);
+  } catch {
+    return [];
+  }
+}
+export async function getMultiStoreOffersById(id: string): Promise<StoreOffer[]> {
+  const key = process.env.ITAD_API_KEY;
+  if (!key) return [];
+  try {
+    const headers = { "content-type": "application/json", "ITAD-API-Key": key };
     const prices = await fetch("https://api.isthereanydeal.com/games/prices/v3?country=BR&deals=false&capacity=30", {
       method: "POST",
       headers,
@@ -112,6 +134,42 @@ export async function getMultiStoreOffers(title: string): Promise<StoreOffer[]> 
     return (result?.deals ?? []).map((deal) => ({ shop:deal.shop.name, price:deal.price.amount, regular:deal.regular.amount, discount:deal.cut, drm:(deal.drm??[]).map(item=>item.name), platforms:(deal.platforms??[]).map(item=>item.name), url:deal.url })).sort((a,b)=>a.price-b.price);
   } catch {
     return [];
+  }
+}
+export async function getCatalogGameDetails(id: string): Promise<SteamGameDetails | null> {
+  const key = process.env.ITAD_API_KEY;
+  if (!key) return null;
+  try {
+    const response = await fetch(
+      `https://api.isthereanydeal.com/games/info/v2?id=${encodeURIComponent(id)}`,
+      { headers: { "ITAD-API-Key": key }, next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) },
+    );
+    if (!response.ok) return null;
+    const info = (await response.json()) as ItadGame;
+    if (info.appid) {
+      const steam = await getSteamGameDetails(info.appid);
+      if (steam) return { ...steam, catalogId: info.id };
+    }
+    const image = info.assets?.banner600 ?? info.assets?.banner400 ?? info.assets?.banner300 ?? info.assets?.boxart ?? "";
+    return {
+      appId: info.appid ?? null,
+      catalogId: info.id,
+      name: info.title,
+      shortDescription: "Compare o preço atual e a disponibilidade deste jogo nas lojas monitoradas pelo TrioBrabo.",
+      headerImage: image,
+      website: "https://isthereanydeal.com/",
+      developers: (info.developers ?? []).map((item) => item.name),
+      publishers: (info.publishers ?? []).map((item) => item.name),
+      genres: (info.tags ?? []).slice(0, 8),
+      platforms: ["PC"],
+      screenshots: [],
+      requirements: "Os requisitos variam conforme a versão. Consulte a loja escolhida antes da compra.",
+      originalPrice: null,
+      currentPrice: null,
+      discount: 0,
+    };
+  } catch {
+    return null;
   }
 }
 export async function getSteamGameDetails(
