@@ -1,3 +1,4 @@
 self.addEventListener("install",()=>self.skipWaiting());
 self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));
-self.addEventListener("notificationclick",event=>{event.notification.close();event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(clients=>{const existing=clients.find(client=>"focus" in client);return existing?existing.focus():self.clients.openWindow("/");}));});
+self.addEventListener("push",event=>{const data=event.data?.json()||{};event.waitUntil(self.registration.showNotification(data.title||"Novo jogo grátis!",{body:data.body||"Abra o TrioBrabo Games Drop para conferir.",icon:"/trio-brabo-logo.png",badge:"/icon.svg",tag:data.gameId||"new-game",data:{url:data.url||"/"},actions:[{action:"open",title:"Resgatar agora"}]}));});
+self.addEventListener("notificationclick",event=>{const url=event.notification.data?.url||"/";event.notification.close();event.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(clients=>{const existing=clients.find(client=>client.url===url&&"focus" in client);return existing?existing.focus():self.clients.openWindow(url);}));});
