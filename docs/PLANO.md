@@ -1,4 +1,4 @@
-# FreeDrop — plano do produto
+# TrioBrabo Games Drop — plano do produto
 
 ## Visão
 

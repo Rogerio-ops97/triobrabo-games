@@ -1,6 +1,6 @@
-# FreeDrop
+# TrioBrabo Games Drop
 
-PWA para descobrir jogos temporariamente grátis nas principais lojas.
+PWA do grupo TrioBrabo para descobrir jogos temporariamente grátis nas principais lojas.
 
 ## Rodar localmente
 
