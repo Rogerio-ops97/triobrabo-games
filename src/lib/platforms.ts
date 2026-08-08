@@ -1,4 +1,4 @@
-export type PlatformKind = "Loja" | "Assinatura" | "Giveaway" | "Free-to-play";
+export type PlatformKind = "Loja" | "Marketplace" | "Assinatura" | "Giveaway" | "Free-to-play";
 
 export type Platform = {
   slug: string;
@@ -32,4 +32,6 @@ export const platforms: Platform[] = [
   {slug:"pearl-abyss",name:"Pearl Abyss",kind:"Free-to-play",website_url:"https://www.pearlabyss.com/",featured:false,requires_subscription:false,note:"MMOs e períodos promocionais",sort_order:18},
   {slug:"alienware-arena",name:"Alienware Arena",kind:"Giveaway",website_url:"https://www.alienwarearena.com/giveaways",featured:false,requires_subscription:false,note:"Chaves, sorteios e recompensas para PC",sort_order:19},
   {slug:"steelseries-gg",name:"SteelSeries GG",kind:"Giveaway",website_url:"https://steelseries.com/gg/collectors",featured:false,requires_subscription:false,note:"Chaves e itens promocionais limitados",sort_order:20},
+  {slug:"nuuvem",name:"Nuuvem",kind:"Loja",website_url:"https://www.nuuvem.com/br-pt/",featured:false,requires_subscription:false,note:"Loja brasileira com preços em reais e chaves para diferentes launchers",sort_order:21},
+  {slug:"thunderkeys",name:"ThunderKeys",kind:"Marketplace",website_url:"https://www.thunderkeys.com/",featured:false,requires_subscription:false,note:"Marketplace de chaves; confira região, plataforma de ativação e políticas do vendedor",sort_order:22},
 ];

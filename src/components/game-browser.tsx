@@ -12,7 +12,7 @@ function GameCard({game,saved,toggle}:{game:Game;saved:boolean;toggle:(id:string
 
 export function GameBrowser({games}:{games:Game[]}){
  const [query,setQuery]=useState("");const [store,setStore]=useState("Todas");const [saved,setSaved]=useState<string[]>([]);const [onlySaved,setOnlySaved]=useState(false);const [slide,setSlide]=useState(0);const [paused,setPaused]=useState(false);
- useEffect(()=>{queueMicrotask(()=>setSaved(JSON.parse(localStorage.getItem("freedrop:saved")||"[]")));},[]);
+ useEffect(()=>{queueMicrotask(()=>{setSaved(JSON.parse(localStorage.getItem("freedrop:saved")||"[]"));setOnlySaved(new URLSearchParams(window.location.search).get("salvos")==="1")});},[]);
  const spotlightGames=useMemo(()=>{const primary=games.filter(g=>g.store==="Steam"||g.store==="Epic Games");const highResolution=primary.filter(g=>!g.image_url.includes("gamerpower.com/offers/"));return highResolution.length?highResolution:primary},[games]);
  useEffect(()=>{if(paused||spotlightGames.length<2)return;const timer=setInterval(()=>setSlide(v=>(v+1)%spotlightGames.length),6500);return()=>clearInterval(timer)},[paused,spotlightGames.length]);
  const toggle=(id:string)=>setSaved(v=>{const n=v.includes(id)?v.filter(x=>x!==id):[...v,id];localStorage.setItem("freedrop:saved",JSON.stringify(n));return n});
