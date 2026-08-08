@@ -1,1 +1,1 @@
-export type Game = { id:string; slug:string; title:string; store:"Epic Games"|"Steam"|"GOG"|"Prime Gaming"; description:string; image_url:string; claim_url:string; original_price:number; starts_at:string; ends_at:string; genres:string[]; featured:boolean };
+export type Game = { id:string; slug:string; title:string; store:string; description:string; image_url:string; claim_url:string; original_price:number; starts_at:string; ends_at:string; genres:string[]; featured:boolean };
