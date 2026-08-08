@@ -74,6 +74,46 @@ export type SteamGameDetails = {
   currentPrice: number | null;
   discount: number;
 };
+export type StoreOffer = {
+  shop: string;
+  price: number;
+  regular: number;
+  discount: number;
+  drm: string[];
+  platforms: string[];
+  url: string;
+};
+export async function getMultiStoreOffers(title: string): Promise<StoreOffer[]> {
+  const key = process.env.ITAD_API_KEY;
+  if (!key) return [];
+  try {
+    const headers = { "content-type": "application/json", "ITAD-API-Key": key };
+    const lookup = await fetch("https://api.isthereanydeal.com/lookup/id/title/v1", {
+      method: "POST",
+      headers,
+      body: JSON.stringify([title]),
+      next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!lookup.ok) return [];
+    const ids = (await lookup.json()) as Record<string, string | null>;
+    const id = ids[title];
+    if (!id) return [];
+    const prices = await fetch("https://api.isthereanydeal.com/games/prices/v3?country=BR&deals=false&capacity=30", {
+      method: "POST",
+      headers,
+      body: JSON.stringify([id]),
+      next: { revalidate: 900 },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!prices.ok) return [];
+    const payload = (await prices.json()) as { deals?: Array<{ shop:{name:string}; price:{amount:number}; regular:{amount:number}; cut:number; drm?:Array<{name:string}>; platforms?:Array<{name:string}>; url:string }> } | Array<{ deals?: Array<{ shop:{name:string}; price:{amount:number}; regular:{amount:number}; cut:number; drm?:Array<{name:string}>; platforms?:Array<{name:string}>; url:string }> }>;
+    const result = Array.isArray(payload) ? payload[0] : payload;
+    return (result?.deals ?? []).map((deal) => ({ shop:deal.shop.name, price:deal.price.amount, regular:deal.regular.amount, discount:deal.cut, drm:(deal.drm??[]).map(item=>item.name), platforms:(deal.platforms??[]).map(item=>item.name), url:deal.url })).sort((a,b)=>a.price-b.price);
+  } catch {
+    return [];
+  }
+}
 export async function getSteamGameDetails(
   appId: number,
 ): Promise<SteamGameDetails | null> {

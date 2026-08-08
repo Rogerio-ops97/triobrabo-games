@@ -11,13 +11,13 @@ import {
   Store,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { SteamGameDetails } from "@/lib/deals";
+import type { SteamGameDetails, StoreOffer } from "@/lib/deals";
 import { SiteHeader } from "./site-header";
 const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
-export function GameDetails({ game }: { game: SteamGameDetails }) {
+export function GameDetails({ game, offers }: { game: SteamGameDetails; offers: StoreOffer[] }) {
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     queueMicrotask(() => {
@@ -113,7 +113,14 @@ export function GameDetails({ game }: { game: SteamGameDetails }) {
             </p>
             <h2>Preços disponíveis</h2>
           </div>
-          <article>
+          {offers.map((offer,index)=><article className={index===0?"best-offer":""} key={`${offer.shop}-${offer.url}`}>
+            <Store />
+            <div><strong>{offer.shop}</strong><span>{offer.drm.length?`Ativação: ${offer.drm.join(", ")}`:offer.platforms.join(", ")||"PC"}</span></div>
+            {offer.discount>0?<s>{brl.format(offer.regular)}</s>:<span/>}
+            <b>{brl.format(offer.price)}</b>
+            <a href={offer.url} target="_blank" rel="noreferrer">Ir à loja <ArrowUpRight /></a>
+          </article>)}
+          {!offers.length ? <article>
             <Store />
             <div>
               <strong>Steam</strong>
@@ -134,11 +141,11 @@ export function GameDetails({ game }: { game: SteamGameDetails }) {
             <a href={steamUrl} target="_blank" rel="noreferrer">
               Ir à loja <ArrowUpRight />
             </a>
-          </article>
-          <small>
+          </article> : null}
+          {offers.length ? <small>Preços e links fornecidos por IsThereAnyDeal. A primeira opção é o menor preço encontrado.</small> : <small>
             Epic Games, Nuuvem, GOG e outras lojas aparecerão quando houver
             preço e disponibilidade confirmados.
-          </small>
+          </small>}
         </section>
         {game.screenshots.length ? (
           <section className="screenshots">
