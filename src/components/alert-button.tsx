@@ -1,22 +1,17 @@
 "use client";
-import { Bell, BellRing } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bell,BellRing,Check,X } from "lucide-react";
+import { useEffect,useState } from "react";
+import { platforms } from "@/lib/platforms";
 
+const defaults=["steam","epic-games"];
 export function AlertButton(){
- const [permission,setPermission]=useState<NotificationPermission|"unsupported">("default");
- useEffect(()=>{queueMicrotask(()=>setPermission("Notification" in window?Notification.permission:"unsupported"));},[]);
+ const [permission,setPermission]=useState<NotificationPermission|"unsupported">("default");const [open,setOpen]=useState(false);const [selected,setSelected]=useState<string[]>(defaults);const [busy,setBusy]=useState(false);const [error,setError]=useState("");
+ useEffect(()=>{queueMicrotask(()=>{setPermission("Notification" in window?Notification.permission:"unsupported");try{const saved=JSON.parse(localStorage.getItem("triobrabo:alert-platforms")||"[]");if(Array.isArray(saved)&&saved.length)setSelected(saved)}catch{}})},[]);
+ const toggle=(slug:string)=>setSelected(value=>value.includes(slug)?value.filter(item=>item!==slug):[...value,slug]);
  async function activate(){
-  if(permission==="unsupported"){alert("Este navegador não oferece notificações. Instale a PWA ou use Chrome, Edge ou Safari atualizado.");return;}
-  const registration=await navigator.serviceWorker.register("/sw.js");
-  const result=await Notification.requestPermission();setPermission(result);
-  if(result==="granted"){
-   const keyResponse=await fetch("/api/push/public-key");if(!keyResponse.ok)throw new Error("Push indisponível");const {key}=await keyResponse.json();
-   let subscription=await registration.pushManager.getSubscription();
-   if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(key)});
-   const saved=await fetch("/api/push/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(subscription)});if(!saved.ok)throw new Error("Falha ao salvar inscrição");
-   registration.showNotification("Alertas ativados! 🎮",{body:"Você receberá os próximos jogos pagos que ficarem grátis.",icon:"/trio-brabo-logo.png",badge:"/icon.svg",tag:"alerts-ready"});
-  }
+  if(!selected.length){setError("Escolha pelo menos uma plataforma.");return}if(permission==="unsupported"){setError("Este navegador não oferece notificações. Instale a PWA ou use Chrome, Edge ou Safari atualizado.");return}
+  setBusy(true);setError("");try{const registration=await navigator.serviceWorker.register("/sw.js");const result=await Notification.requestPermission();setPermission(result);if(result!=="granted"){setError("A permissão de notificações não foi concedida.");return}const keyResponse=await fetch("/api/push/public-key");if(!keyResponse.ok)throw new Error();const {key}=await keyResponse.json();let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(key)});const saved=await fetch("/api/push/subscribe",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...subscription.toJSON(),platforms:selected})});if(!saved.ok)throw new Error();localStorage.setItem("triobrabo:alert-platforms",JSON.stringify(selected));setOpen(false);registration.showNotification("Preferências salvas! 🎮",{body:`Alertas de ${selected.length} plataforma${selected.length>1?"s":""} ativados.`,icon:"/trio-brabo-logo.png",badge:"/icon.svg",tag:"alerts-ready"})}catch{setError("Não foi possível salvar os alertas. Tente novamente.")}finally{setBusy(false)}
  }
- return <button className={`notify ${permission==="granted"?"enabled":""}`} onClick={activate} title={permission==="granted"?"Alertas permitidos neste dispositivo":"Ativar alertas neste dispositivo"}>{permission==="granted"?<BellRing size={18}/>:<Bell size={18}/>}<span>{permission==="granted"?"Alertas ativos":"Ativar alertas"}</span></button>;
+ return <><button className={`notify ${permission==="granted"?"enabled":""}`} onClick={()=>setOpen(true)} title="Escolher plataformas dos alertas">{permission==="granted"?<BellRing size={18}/>:<Bell size={18}/>}<span>{permission==="granted"?"Alertas ativos":"Ativar alertas"}</span></button>{open&&<div className="alert-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}><section className="alert-modal" role="dialog" aria-modal="true" aria-labelledby="alert-title"><button className="alert-close" onClick={()=>setOpen(false)} aria-label="Fechar"><X/></button><div className="alert-icon"><BellRing/></div><p>Personalize seus drops</p><h2 id="alert-title">De quais plataformas você quer receber alertas?</h2><span>Você poderá mudar esta seleção quando quiser.</span><div className="alert-platforms">{platforms.map(platform=><label key={platform.slug} className={selected.includes(platform.slug)?"checked":""}><input type="checkbox" checked={selected.includes(platform.slug)} onChange={()=>toggle(platform.slug)}/><i>{selected.includes(platform.slug)&&<Check size={14}/>}</i><b>{platform.name}</b><small>{platform.featured?"Destaque":""}</small></label>)}</div>{error&&<div className="alert-error">{error}</div>}<button className="alert-save" disabled={busy||!selected.length} onClick={activate}>{busy?"Ativando...":permission==="granted"?"Salvar preferências":"Ativar meus alertas"}</button></section></div>}</>;
 }
 function urlBase64ToUint8Array(value:string){const padding="=".repeat((4-value.length%4)%4);const base64=(value+padding).replace(/-/g,"+").replace(/_/g,"/");const raw=atob(base64);return Uint8Array.from([...raw].map(char=>char.charCodeAt(0)))}
