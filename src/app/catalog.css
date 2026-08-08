@@ -22,3 +22,29 @@
 }
 .detail-cover-placeholder svg { width: 48px; height: 48px; color: var(--lime); }
 @media (max-width: 650px) { .catalog-placeholder { width: 92px; height: 48px; } }
+.store-filters {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.deal-image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle, rgba(200,255,61,.14), transparent 45%), #171920;
+  color: var(--lime);
+}
+.deal-image-placeholder svg { width: 42px; height: 42px; }
+.deal-thumb-placeholder {
+  width: 88px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #1b1e26;
+  color: var(--lime);
+}

@@ -45,7 +45,8 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
   const [minimum, setMinimum] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
   const [onlySaved, setOnlySaved] = useState(false);
-  const [saved, setSaved] = useState<number[]>([]);
+  const [store, setStore] = useState("Todas");
+  const [saved, setSaved] = useState<string[]>([]);
   useEffect(() => {
     queueMicrotask(() => {
       try {
@@ -55,7 +56,7 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
       } catch {}
     });
   }, []);
-  const toggle = (id: number) =>
+  const toggle = (id: string) =>
     setSaved((current) => {
       const next = current.includes(id)
         ? current.filter((item) => item !== id)
@@ -69,12 +70,17 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
         (deal) =>
           deal.discount >= minimum &&
           (!maxPrice || deal.salePrice <= maxPrice) &&
-          (!onlySaved || saved.includes(deal.appId)) &&
+          (store === "Todas" || deal.store === store) &&
+          (!onlySaved || saved.includes(deal.catalogId)) &&
           deal.title
             .toLocaleLowerCase("pt-BR")
             .includes(query.toLocaleLowerCase("pt-BR")),
       ),
-    [deals, maxPrice, minimum, onlySaved, query, saved],
+    [deals, maxPrice, minimum, onlySaved, query, saved, store],
+  );
+  const stores = useMemo(
+    () => ["Todas", ...Array.from(new Set(deals.map((deal) => deal.store))).sort()],
+    [deals],
   );
   return (
     <>
@@ -104,14 +110,10 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
         </section>
         <section className="deal-channels" aria-label="Lojas do radar">
           <strong>Agora no radar</strong>
-          <span className="ready">
-            <i />
-            Steam ao vivo
-          </span>
-          <span>Nuuvem em preparação</span>
-          <span>Epic em preparação</span>
-          <span>GOG em preparação</span>
-          <small>Marketplaces de chaves são identificados separadamente.</small>
+          {stores.slice(1, 9).map((name) => (
+            <span className="ready" key={name}><i />{name}</span>
+          ))}
+          <small>{stores.length - 1} lojas com ofertas ao vivo.</small>
         </section>
         <section className="deals-catalog">
           <div className="section-title">
@@ -156,6 +158,13 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                 </button>
               ))}
             </div>
+            <div className="store-filters" aria-label="Filtrar por loja">
+              {stores.map((name) => (
+                <button type="button" key={name} className={store === name ? "selected" : ""} onClick={() => setStore(name)}>
+                  {name}
+                </button>
+              ))}
+            </div>
             <button
               className={`saved-filter ${onlySaved ? "selected" : ""}`}
               onClick={() => setOnlySaved((value) => !value)}
@@ -167,13 +176,13 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
             <div className="deals-grid">
               {shown.map((deal) => (
                 <article className="deal-card" key={deal.id}>
-                  <Link className="deal-image" href={`/ofertas/${deal.appId}`}>
-                    <Image
+                  <Link className="deal-image" href={`/jogos/${deal.catalogId}`}>
+                    {deal.imageUrl ? <Image
                       src={deal.imageUrl}
                       alt={`Capa de ${deal.title}`}
                       fill
                       sizes="(max-width: 650px) 100vw, (max-width: 1000px) 50vw, 33vw"
-                    />
+                    /> : <span className="deal-image-placeholder"><Store /></span>}
                     <b>-{deal.discount}%</b>
                     <span>
                       <Check /> {verdict(deal.discount)}
@@ -186,15 +195,15 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                       <small>Ativa na {deal.activation}</small>
                     </div>
                     <div className="deal-title-row">
-                      <Image
+                      {deal.imageUrl ? <Image
                         src={deal.imageUrl}
                         alt=""
                         width={88}
                         height={50}
                         loading="eager"
-                      />
+                      /> : <span className="deal-thumb-placeholder"><Store /></span>}
                       <h3>
-                        <Link href={`/ofertas/${deal.appId}`}>{deal.title}</Link>
+                        <Link href={`/jogos/${deal.catalogId}`}>{deal.title}</Link>
                       </h3>
                     </div>
                     <div className="deal-price">
@@ -203,9 +212,9 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                         <strong>{brl.format(deal.salePrice)}</strong>
                       </div>
                       <button
-                        className={saved.includes(deal.appId) ? "saved" : ""}
-                        onClick={() => toggle(deal.appId)}
-                        aria-label={`${saved.includes(deal.appId) ? "Remover" : "Adicionar"} ${deal.title} da lista`}
+                        className={saved.includes(deal.catalogId) ? "saved" : ""}
+                        onClick={() => toggle(deal.catalogId)}
+                        aria-label={`${saved.includes(deal.catalogId) ? "Remover" : "Adicionar"} ${deal.title} da lista`}
                       >
                         <Bookmark />
                       </button>

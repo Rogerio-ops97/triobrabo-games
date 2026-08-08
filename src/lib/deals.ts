@@ -1,10 +1,11 @@
 export type Deal = {
   id: string;
   appId: number;
+  catalogId: string;
   title: string;
   imageUrl: string;
-  store: "Steam";
-  activation: "Steam";
+  store: string;
+  activation: string;
   originalPrice: number;
   salePrice: number;
   discount: number;
@@ -41,6 +42,7 @@ export async function getBrazilianDeals(): Promise<Deal[]> {
       .map((item) => ({
         id: `steam-${item.id}`,
         appId: item.id,
+        catalogId: String(item.id),
         title: item.name,
         imageUrl: item.large_capsule_image ?? item.header_image ?? "",
         store: "Steam" as const,
@@ -55,6 +57,55 @@ export async function getBrazilianDeals(): Promise<Deal[]> {
     ).sort((a, b) => b.discount - a.discount);
   } catch {
     return [];
+  }
+}
+
+type ItadDealItem = {
+  id: string;
+  title: string;
+  type: string;
+  assets?: ItadAssets;
+  deal: {
+    shop: { name: string };
+    price: { amount: number };
+    regular: { amount: number };
+    cut: number;
+    drm?: Array<{ name: string }>;
+    platforms?: Array<{ name: string }>;
+    url: string;
+  };
+};
+
+export async function getMultiStoreDeals(): Promise<Deal[]> {
+  const key = process.env.ITAD_API_KEY;
+  if (!key) return getBrazilianDeals();
+  try {
+    const response = await fetch("https://api.isthereanydeal.com/deals/v2", {
+      method: "POST",
+      headers: { "content-type": "application/json", "ITAD-API-Key": key },
+      body: JSON.stringify({ country: "BR", limit: 100, sort: "-cut", nondeals: false, mature: false }),
+      next: { revalidate: 900 },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) return getBrazilianDeals();
+    const payload = (await response.json()) as { list?: ItadDealItem[] };
+    return (payload.list ?? [])
+      .filter((item) => item.type === "game" && item.deal.cut > 0)
+      .map((item) => ({
+        id: `${item.id}-${item.deal.shop.name}`,
+        appId: 0,
+        catalogId: item.id,
+        title: item.title,
+        imageUrl: item.assets?.banner400 ?? item.assets?.banner300 ?? item.assets?.banner600 ?? item.assets?.boxart ?? "",
+        store: item.deal.shop.name,
+        activation: item.deal.drm?.map((drm) => drm.name).join(", ") || item.deal.platforms?.map((platform) => platform.name).join(", ") || "PC",
+        originalPrice: item.deal.regular.amount,
+        salePrice: item.deal.price.amount,
+        discount: item.deal.cut,
+        url: item.deal.url,
+      }));
+  } catch {
+    return getBrazilianDeals();
   }
 }
 
