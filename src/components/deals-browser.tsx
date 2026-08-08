@@ -183,7 +183,6 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                       fill
                       sizes="(max-width: 650px) 100vw, (max-width: 1000px) 50vw, 33vw"
                     /> : <span className="deal-image-placeholder"><Store /></span>}
-                    <b>-{deal.discount}%</b>
                     <span>
                       <Check /> {verdict(deal.discount)}
                     </span>
@@ -193,6 +192,7 @@ export function DealsBrowser({ deals }: { deals: Deal[] }) {
                       <Store />
                       <span>{deal.store}</span>
                       <small>Ativa na {deal.activation}</small>
+                      <b className="deal-discount">-{deal.discount}%</b>
                     </div>
                     <div className="deal-title-row">
                       {deal.imageUrl ? <Image

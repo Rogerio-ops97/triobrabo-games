@@ -48,3 +48,90 @@
   background: #1b1e26;
   color: var(--lime);
 }
+.deal-store {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 7px;
+}
+.deal-store > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deal-store > small {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  margin-left: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.deal-discount {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: var(--lime);
+  color: #090a0d;
+  font-size: 11px;
+  line-height: 1;
+}
+@media (min-width: 901px) and (max-width: 1200px) {
+  header { gap: 18px; padding-inline: 20px; }
+  header nav { gap: 14px; font-size: 12px; white-space: nowrap; }
+  header .notify { padding-inline: 11px; }
+  header .notify span { display: none; }
+}
+@media (min-width: 621px) and (max-width: 900px) {
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .mobile-nav {
+    position: fixed;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    height: calc(66px + env(safe-area-inset-bottom));
+    padding: 7px 6px env(safe-area-inset-bottom);
+    background: rgba(12,13,18,.96);
+    border-top: 1px solid #2a2e39;
+    backdrop-filter: blur(18px);
+  }
+  .mobile-nav a, .mobile-nav button {
+    border: 0;
+    background: none;
+    color: #858a96;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+  }
+  .mobile-nav svg { width: 22px; height: 22px; }
+  .mobile-nav .active { color: var(--lime); }
+  .mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: end;
+    background: rgba(3,4,7,.75);
+    backdrop-filter: blur(8px);
+  }
+  .mobile-menu {
+    width: 100%;
+    background: #13151c;
+    border: 1px solid #303541;
+    border-radius: 24px 24px 0 0;
+    padding: 22px 24px calc(24px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+  }
+  .mobile-menu > div { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .mobile-menu button { width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 50%; background: none; color: #fff; }
+  .mobile-menu > a { padding: 15px 4px; border-top: 1px solid var(--line); font-weight: 700; }
+}
