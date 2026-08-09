@@ -83,7 +83,7 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
     const response = await fetch("https://api.isthereanydeal.com/deals/v2", {
       method: "POST",
       headers: { "content-type": "application/json", "ITAD-API-Key": key },
-      body: JSON.stringify({ country: "BR", limit: 100, sort: "-cut", nondeals: false, mature: false }),
+      body: JSON.stringify({ country: "BR", limit: 200, sort: "-cut", nondeals: false, mature: false }),
       next: { revalidate: 900 },
       signal: AbortSignal.timeout(10000),
     });

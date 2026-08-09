@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  ChevronDown,
   Gamepad2,
   LoaderCircle,
   Search,
@@ -40,6 +41,7 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
   const [query, setQuery] = useState("");
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAllDeals, setShowAllDeals] = useState(false);
   const term = query.trim().toLocaleLowerCase("pt-BR");
   useEffect(() => {
     if (term.length < 2) {
@@ -88,8 +90,11 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
         if (!current || deal.salePrice < current.salePrice) uniqueDeals.set(key, deal);
       }
     }
-    return { games: Array.from(uniqueGames.values()), deals: Array.from(uniqueDeals.values()) };
+    const priority = (deal: Deal) => /steam|epic/i.test(deal.store) ? 0 : 1;
+    const sortedDeals = Array.from(uniqueDeals.values()).sort((a, b) => priority(a) - priority(b));
+    return { games: Array.from(uniqueGames.values()), deals: sortedDeals };
   }, [deals, games, term]);
+  const visibleDeals = showAllDeals ? results.deals : results.deals.slice(0, 16);
   return (
     <>
       <SiteHeader />
@@ -207,7 +212,7 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
               <h2>
                 <Tag /> Em promoção <span>{results.deals.length}</span>
               </h2>
-              {results.deals.map((deal) => (
+              {visibleDeals.map((deal) => (
                 <Link
                   className="search-result"
                   href={`/jogos/${deal.catalogId}`}
@@ -229,6 +234,12 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
                   <ArrowUpRight />
                 </Link>
               ))}
+              {results.deals.length > 16 ? (
+                <button className="search-show-more" type="button" onClick={() => setShowAllDeals((value) => !value)}>
+                  <ChevronDown className={showAllDeals ? "expanded" : ""} />
+                  {showAllDeals ? "Mostrar menos" : `Ver mais promoções (${results.deals.length - 16})`}
+                </button>
+              ) : null}
             </section>
           </div>
         )}

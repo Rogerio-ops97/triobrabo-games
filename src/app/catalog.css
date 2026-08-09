@@ -78,6 +78,24 @@
   font-size: 11px;
   line-height: 1;
 }
+.search-show-more {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 12px;
+  border: 1px solid rgba(200,255,61,.4);
+  border-radius: 12px;
+  background: rgba(200,255,61,.07);
+  color: var(--lime);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.search-show-more:hover { background: rgba(200,255,61,.12); }
+.search-show-more svg { width: 19px; transition: transform .2s ease; }
+.search-show-more svg.expanded { transform: rotate(180deg); }
 @media (min-width: 901px) and (max-width: 1200px) {
   header { gap: 18px; padding-inline: 20px; }
   header nav { gap: 14px; font-size: 12px; white-space: nowrap; }
