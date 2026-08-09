@@ -89,7 +89,7 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
     });
     if (!response.ok) return getBrazilianDeals();
     const payload = (await response.json()) as { list?: ItadDealItem[] };
-    return (payload.list ?? [])
+    const deals = (payload.list ?? [])
       .filter((item) => item.type === "game" && item.deal.cut > 0)
       .map((item) => ({
         id: `${item.id}-${item.deal.shop.name}`,
@@ -104,6 +104,13 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
         discount: item.deal.cut,
         url: item.deal.url,
       }));
+    const unique = new Map<string, Deal>();
+    for (const deal of deals) {
+      const key = deal.catalogId || deal.title.trim().toLocaleLowerCase("pt-BR");
+      const current = unique.get(key);
+      if (!current || deal.salePrice < current.salePrice) unique.set(key, deal);
+    }
+    return Array.from(unique.values());
   } catch {
     return getBrazilianDeals();
   }

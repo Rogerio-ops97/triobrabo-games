@@ -26,6 +26,16 @@ const brl = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
 });
+const normalizeTitle = (title: string) => {
+  const giveaway = /\bgiveaway\b/i.test(title);
+  return title
+    .toLocaleLowerCase("pt-BR")
+    .replace(giveaway ? /\([^)]*\)/g : /$^/, "")
+    .replace(/\bgiveaway\b/gi, "")
+    .replace(/[®™©]/g, "")
+    .replace(/[^a-z0-9à-ÿ]+/gi, " ")
+    .trim();
+};
 export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
   const [query, setQuery] = useState("");
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
@@ -60,17 +70,26 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
       controller.abort();
     };
   }, [term]);
-  const results = useMemo(
-    () => ({
-      games: games.filter(
-        (item) => !term || item.title.toLocaleLowerCase("pt-BR").includes(term),
-      ),
-      deals: deals.filter(
-        (item) => !term || item.title.toLocaleLowerCase("pt-BR").includes(term),
-      ),
-    }),
-    [deals, games, term],
-  );
+  const results = useMemo(() => {
+    const uniqueGames = new Map<string, Game>();
+    for (const game of games) {
+      if (!term || game.title.toLocaleLowerCase("pt-BR").includes(term)) {
+        const key = normalizeTitle(game.title);
+        if (key && !uniqueGames.has(key)) uniqueGames.set(key, game);
+      }
+    }
+    const freeTitles = new Set(uniqueGames.keys());
+    const uniqueDeals = new Map<string, Deal>();
+    for (const deal of deals) {
+      const titleKey = normalizeTitle(deal.title);
+      if ((!term || deal.title.toLocaleLowerCase("pt-BR").includes(term)) && titleKey && !freeTitles.has(titleKey)) {
+        const key = deal.catalogId || titleKey;
+        const current = uniqueDeals.get(key);
+        if (!current || deal.salePrice < current.salePrice) uniqueDeals.set(key, deal);
+      }
+    }
+    return { games: Array.from(uniqueGames.values()), deals: Array.from(uniqueDeals.values()) };
+  }, [deals, games, term]);
   return (
     <>
       <SiteHeader />
@@ -191,7 +210,7 @@ export function SearchHub({ games, deals }: { games: Game[]; deals: Deal[] }) {
               {results.deals.map((deal) => (
                 <Link
                   className="search-result"
-                  href={`/ofertas/${deal.appId}`}
+                  href={`/jogos/${deal.catalogId}`}
                   key={deal.id}
                 >
                   <Image
