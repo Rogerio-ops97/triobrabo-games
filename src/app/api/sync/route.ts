@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
     return await synchronize(request);
   } catch (error) {
     console.error("free-games-sync-failed", error);
-    return Response.json({ error: "Falha na sincronização" }, { status: 500 });
+    return Response.json({ error: "Falha na sincronização", detail: error instanceof Error ? error.message : "Erro desconhecido" }, { status: 500 });
   }
 }
 
