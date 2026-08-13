@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { sendPush } from "@/lib/push";
 import type { Game } from "@/lib/types";
 
@@ -40,6 +41,13 @@ const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036
 const gameTitle = (value: string) => value.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, "").trim();
 const titleKey = (value: string) => slugify(gameTitle(value));
 const storeName = (platforms: string) => platforms.includes("Epic") ? "Epic Games" : platforms.includes("Steam") ? "Steam" : platforms.includes("GOG") ? "GOG" : platforms.includes("itch") ? "itch.io" : platforms.split(",")[0]?.trim() || "PC";
+const SUPABASE_CRON_TOKEN_HASH = "35e456a451c9eb4fdf053c774d194a9261948f7bf1e5db1c9c6eb372320f6079";
+const validSupabaseCronToken = (value: string | null) => {
+  if (!value) return false;
+  const received = Buffer.from(createHash("sha256").update(value).digest("hex"));
+  const expected = Buffer.from(SUPABASE_CRON_TOKEN_HASH);
+  return received.length === expected.length && timingSafeEqual(received, expected);
+};
 
 async function fetchEpicOffers(now = new Date()) {
   const response = await fetch("https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=pt-BR&country=BR&allowCountries=BR", { cache: "no-store" });
@@ -94,7 +102,8 @@ async function highResolutionSteamImages(offers: Giveaway[]) {
 async function synchronize(request: NextRequest) {
   const startedAt = Date.now();
   const auth = request.headers.get("authorization");
-  const valid = [process.env.CRON_SECRET, process.env.SYNC_SECRET].filter(Boolean).some((secret) => auth === `Bearer ${secret}`);
+  const valid = [process.env.CRON_SECRET, process.env.SYNC_SECRET].filter(Boolean).some((secret) => auth === `Bearer ${secret}`)
+    || validSupabaseCronToken(request.headers.get("x-sync-cron-token"));
   if (!valid) return Response.json({ error: "Não autorizado" }, { status: 401 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

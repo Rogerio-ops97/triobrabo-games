@@ -13,8 +13,8 @@ select cron.schedule(
     select net.http_get(
       url := 'https://triobrabo-games.vercel.app/api/sync',
       headers := jsonb_build_object(
-        'Authorization',
-        'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'sync_cron_token' limit 1)
+        'x-sync-cron-token',
+        (select decrypted_secret from vault.decrypted_secrets where name = 'sync_cron_token' limit 1)
       ),
       timeout_milliseconds := 10000
     );
