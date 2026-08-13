@@ -167,19 +167,16 @@ async function synchronize(request: NextRequest) {
     })),
   ];
 
-  const ids = rows.map((row) => row.source_id);
-  const { data: known, error: knownError } = await db.from("games").select("source_id").in("source_id", ids);
-  if (knownError) throw knownError;
-  const knownIds = new Set((known || []).map((row) => row.source_id));
-  const { data: stored, error } = await db.from("games").upsert(rows, { onConflict: "source_id" }).select("*");
+  const { data: stored, error } = await db.rpc("sync_free_games", { payload: rows, sync_token: cronToken || secret });
   if (error) throw error;
 
-  const fresh = (stored || []).filter((game) => !knownIds.has(game.source_id) && Number(game.original_price) > 0) as Game[];
+  const fresh = ((stored || []) as (Game & { is_new?: boolean })[]).filter((game) => game.is_new && Number(game.original_price) > 0);
   let sent = 0;
   for (const game of fresh) {
     const result = await sendPush(game, cronToken);
     sent += result.sent;
-    await db.from("games").update({ notified_at: new Date().toISOString() }).eq("id", game.id);
+    const { error: notifiedError } = await db.rpc("mark_game_notified", { game_id: game.id, sync_token: cronToken || secret });
+    if (notifiedError) throw notifiedError;
   }
 
   revalidatePath("/");

@@ -27,11 +27,8 @@ export async function sendPush(game: Game, cronToken = "") {
   configure();
   const db = serverDb(cronToken);
   const slug = platformSlug(game.store);
-  const { data, error } = await db.from("push_subscriptions")
-    .select("id,endpoint,p256dh,auth,platforms,alert_types")
-    .eq("active", true)
-    .contains("platforms", [slug])
-    .contains("alert_types", ["free-games"]);
+  const secret = cronToken || process.env.SYNC_SECRET || "";
+  const { data, error } = await db.rpc("push_targets", { platform_slug: slug, sync_token: secret });
   if (error) throw error;
 
   let sent = 0;
@@ -51,7 +48,7 @@ export async function sendPush(game: Game, cronToken = "") {
       const status = (error as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) {
         expired++;
-        await db.from("push_subscriptions").update({ active: false, updated_at: new Date().toISOString() }).eq("id", sub.id);
+        await db.rpc("disable_push_target", { subscription_id: sub.id, sync_token: secret });
       }
     }
   }));
