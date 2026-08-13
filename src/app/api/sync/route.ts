@@ -127,7 +127,8 @@ async function synchronize(request: NextRequest) {
   const secondaryOffers = eligible.filter((item) => !(item.platforms.includes("Epic") && epicTitleKeys.has(titleKey(item.title))));
   const heroImages = await highResolutionSteamImages(secondaryOffers);
 
-  const db = createClient(url, key, { global: { headers: { "x-sync-secret": secret } }, auth: { persistSession: false } });
+  const cronToken = request.headers.get("x-sync-cron-token") || "";
+  const db = createClient(url, key, { global: { headers: { "x-sync-secret": secret, "x-sync-cron-token": cronToken } }, auth: { persistSession: false } });
   const { data: activeEpicRows, error: activeEpicError } = await db.from("games").select("source_id,title").eq("store", "Epic Games").eq("is_active", true).gt("ends_at", new Date().toISOString());
   if (activeEpicError) throw activeEpicError;
   const existingEpicSource = new Map((activeEpicRows || []).map((row) => [titleKey(row.title), row.source_id]));
@@ -176,7 +177,7 @@ async function synchronize(request: NextRequest) {
   const fresh = (stored || []).filter((game) => !knownIds.has(game.source_id) && Number(game.original_price) > 0) as Game[];
   let sent = 0;
   for (const game of fresh) {
-    const result = await sendPush(game);
+    const result = await sendPush(game, cronToken);
     sent += result.sent;
     await db.from("games").update({ notified_at: new Date().toISOString() }).eq("id", game.id);
   }
