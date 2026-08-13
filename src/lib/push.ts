@@ -22,6 +22,7 @@ function configure() {
 }
 
 const platformSlug = (store: string) => store.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+type PushTarget = { id: string; endpoint: string; p256dh: string; auth: string };
 
 export async function sendPush(game: Game, cronToken = "") {
   configure();
@@ -30,6 +31,7 @@ export async function sendPush(game: Game, cronToken = "") {
   const secret = cronToken || process.env.SYNC_SECRET || "";
   const { data, error } = await db.rpc("push_targets", { platform_slug: slug, sync_token: secret });
   if (error) throw error;
+  const targets = Array.isArray(data) ? data as unknown as PushTarget[] : [];
 
   let sent = 0;
   let expired = 0;
@@ -40,7 +42,7 @@ export async function sendPush(game: Game, cronToken = "") {
     gameId: game.id,
   });
 
-  await Promise.all((data || []).map(async (sub) => {
+  await Promise.all(targets.map(async (sub) => {
     try {
       await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 86400, urgency: "high" });
       sent++;
@@ -52,5 +54,5 @@ export async function sendPush(game: Game, cronToken = "") {
       }
     }
   }));
-  return { sent, expired, total: data?.length || 0 };
+  return { sent, expired, total: targets.length };
 }

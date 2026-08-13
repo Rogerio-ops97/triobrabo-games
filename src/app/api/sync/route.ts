@@ -170,7 +170,8 @@ async function synchronize(request: NextRequest) {
   const { data: stored, error } = await db.rpc("sync_free_games", { payload: rows, sync_token: cronToken || secret });
   if (error) throw error;
 
-  const fresh = ((stored || []) as (Game & { is_new?: boolean })[]).filter((game) => game.is_new && Number(game.original_price) > 0);
+  const storedGames = Array.isArray(stored) ? stored as unknown as (Game & { is_new?: boolean })[] : [];
+  const fresh = storedGames.filter((game) => game.is_new && Number(game.original_price) > 0);
   let sent = 0;
   for (const game of fresh) {
     const result = await sendPush(game, cronToken);
