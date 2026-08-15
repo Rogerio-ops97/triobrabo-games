@@ -170,18 +170,22 @@ async function synchronize(request: NextRequest) {
   const { data: stored, error } = await db.rpc("sync_free_games", { payload: rows, sync_token: cronToken || secret });
   if (error) throw error;
 
-  const storedGames = Array.isArray(stored) ? stored as unknown as (Game & { is_new?: boolean })[] : [];
-  const fresh = storedGames.filter((game) => game.is_new && Number(game.original_price) > 0);
+  const storedGames = Array.isArray(stored) ? stored as unknown as (Game & { is_new?: boolean; notified_at?: string | null })[] : [];
+  const fresh = storedGames.filter((game) => (game.is_new || !game.notified_at) && Number(game.original_price) > 0);
   let sent = 0;
+  let failed = 0;
   for (const game of fresh) {
     const result = await sendPush(game, cronToken);
     sent += result.sent;
-    const { error: notifiedError } = await db.rpc("mark_game_notified", { game_id: game.id, sync_token: cronToken || secret });
-    if (notifiedError) throw notifiedError;
+    failed += result.failed;
+    if (result.failed === 0) {
+      const { error: notifiedError } = await db.rpc("mark_game_notified", { game_id: game.id, sync_token: cronToken || secret });
+      if (notifiedError) throw notifiedError;
+    }
   }
 
   revalidatePath("/");
-  const result = { ok: true, checked: offers.length, eligible: rows.length, epicDirect: epicOffers.length, newGames: fresh.length, notifications: sent, sources: { gamerPower: gamerPowerResult.status, epic: epicResult.status }, durationMs: Date.now() - startedAt };
+  const result = { ok: true, checked: offers.length, eligible: rows.length, epicDirect: epicOffers.length, notificationCandidates: fresh.length, notifications: sent, notificationFailures: failed, sources: { gamerPower: gamerPowerResult.status, epic: epicResult.status }, durationMs: Date.now() - startedAt };
   console.info("free-games-sync", result);
   return Response.json(result);
 }

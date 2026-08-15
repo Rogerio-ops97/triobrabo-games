@@ -29,12 +29,13 @@ export async function sendPush(game: Game, cronToken = "") {
   const db = serverDb(cronToken);
   const slug = platformSlug(game.store);
   const secret = cronToken || process.env.SYNC_SECRET || "";
-  const { data, error } = await db.rpc("push_targets", { platform_slug: slug, sync_token: secret });
+  const { data, error } = await db.rpc("push_targets_for_game", { platform_slug: slug, target_game_id: game.id, sync_token: secret });
   if (error) throw error;
   const targets = Array.isArray(data) ? data as unknown as PushTarget[] : [];
 
   let sent = 0;
   let expired = 0;
+  let failed = 0;
   const payload = JSON.stringify({
     title: `🎁 ${game.title} está grátis!`,
     body: `De ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(game.original_price)} por R$ 0 na ${game.store}.`,
@@ -46,13 +47,19 @@ export async function sendPush(game: Game, cronToken = "") {
     try {
       await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 86400, urgency: "high" });
       sent++;
+      await db.rpc("record_push_delivery", { target_game_id: game.id, target_subscription_id: sub.id, delivery_status: "accepted", error_message: null, sync_token: secret });
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) {
         expired++;
         await db.rpc("disable_push_target", { subscription_id: sub.id, sync_token: secret });
+      } else {
+        failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("push-delivery-failed", { gameId: game.id, subscriptionId: sub.id, status, message });
+        await db.rpc("record_push_delivery", { target_game_id: game.id, target_subscription_id: sub.id, delivery_status: "failed", error_message: message.slice(0, 500), sync_token: secret });
       }
     }
   }));
-  return { sent, expired, total: targets.length };
+  return { sent, expired, failed, total: targets.length };
 }
