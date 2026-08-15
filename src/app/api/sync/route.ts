@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { sendPush } from "@/lib/push";
-import { getMultiStoreDeals } from "@/lib/deals";
+import { getFreeMultiStoreDeals } from "@/lib/deals";
 import type { Game } from "@/lib/types";
 
 type Giveaway = {
@@ -132,7 +132,7 @@ async function synchronize(request: NextRequest) {
       return response.json() as Promise<Giveaway[]>;
     }),
     fetchEpicOffers(),
-    getMultiStoreDeals(),
+    getFreeMultiStoreDeals(),
   ]);
   if (gamerPowerResult.status === "rejected" && epicResult.status === "rejected" && dealsResult.status === "rejected") throw new Error("Todas as fontes de jogos grátis falharam");
 

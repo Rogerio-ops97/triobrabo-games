@@ -116,6 +116,46 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
   }
 }
 
+export async function getFreeMultiStoreDeals(): Promise<Deal[]> {
+  const key = process.env.ITAD_API_KEY;
+  if (!key) return [];
+  const collected: ItadDealItem[] = [];
+  try {
+    for (let offset = 0, page = 0; page < 10; offset += 200, page++) {
+      const response = await fetch("https://api.isthereanydeal.com/deals/v2", {
+        method: "POST",
+        headers: { "content-type": "application/json", "ITAD-API-Key": key },
+        body: JSON.stringify({ country: "BR", offset, limit: 200, sort: "price", nondeals: false, mature: true, filter: { cut: { min: 100, max: 100 } } }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error(`ITAD respondeu ${response.status}`);
+      const payload = (await response.json()) as { count?: number; list?: ItadDealItem[] };
+      const items = payload.list ?? [];
+      collected.push(...items);
+      if (items.length < 200 || collected.length >= (payload.count ?? collected.length)) break;
+    }
+    return collected
+      .filter((item) => item.type === "game" && item.deal.price.amount === 0 && item.deal.regular.amount > 0)
+      .map((item) => ({
+        id: `${item.id}-${item.deal.shop.name}`,
+        appId: 0,
+        catalogId: item.id,
+        title: item.title,
+        imageUrl: item.assets?.banner400 ?? item.assets?.banner300 ?? item.assets?.banner600 ?? item.assets?.boxart ?? "",
+        store: item.deal.shop.name,
+        activation: item.deal.drm?.map((drm) => drm.name).join(", ") || item.deal.platforms?.map((platform) => platform.name).join(", ") || "PC",
+        originalPrice: item.deal.regular.amount,
+        salePrice: 0,
+        discount: item.deal.cut,
+        url: item.deal.url,
+      }));
+  } catch (error) {
+    console.error("free-multistore-deals-failed", error);
+    throw error;
+  }
+}
+
 export type SteamGameDetails = {
   appId: number | null;
   catalogId?: string;
