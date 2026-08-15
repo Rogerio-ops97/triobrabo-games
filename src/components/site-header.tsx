@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Search } from "lucide-react";
 import { AlertButton } from "./alert-button";
 
 export function SiteHeader({ saved = 0, onSaved }: { saved?: number; onSaved?: () => void }) {
@@ -15,7 +15,7 @@ export function SiteHeader({ saved = 0, onSaved }: { saved?: number; onSaved?: (
       <nav aria-label="Navegação principal">
         <Link href="/#jogos">Jogos grátis</Link>
         <Link href="/ofertas">Ofertas</Link>
-        <Link href="/buscar">Explorar</Link>
+        <Link href="/buscar" aria-label="Buscar jogos" title="Buscar jogos"><Search size={19} /></Link>
         <Link href="/plataformas">Plataformas</Link>
         <Link href="/como-usar">Como usar</Link>
         {onSaved ? <button onClick={onSaved}><Bookmark size={17} /> Salvos <b>{saved}</b></button> : null}

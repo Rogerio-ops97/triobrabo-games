@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, Compass, Gamepad2, Menu, Tag, X } from "lucide-react";
+import { Bookmark, Gamepad2, Menu, Search, Tag, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 const items = [
   { href: "/#jogos", label: "Grátis", icon: Gamepad2, path: "/" },
   { href: "/ofertas", label: "Ofertas", icon: Tag, path: "/ofertas" },
-  { href: "/buscar", label: "Explorar", icon: Compass, path: "/buscar" },
+  { href: "/buscar", label: "Explorar", icon: Search, path: "/buscar" },
   { href: "/?salvos=1#jogos", label: "Salvos", icon: Bookmark, path: "" },
 ];
 
