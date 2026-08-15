@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { sendPush } from "@/lib/push";
+import { getMultiStoreDeals } from "@/lib/deals";
 import type { Game } from "@/lib/types";
 
 type Giveaway = {
@@ -41,6 +42,20 @@ const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036
 const gameTitle = (value: string) => value.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, "").trim();
 const titleKey = (value: string) => slugify(gameTitle(value));
 const storeName = (platforms: string) => platforms.includes("Epic") ? "Epic Games" : platforms.includes("Steam") ? "Steam" : platforms.includes("GOG") ? "GOG" : platforms.includes("itch") ? "itch.io" : platforms.split(",")[0]?.trim() || "PC";
+const canonicalStore = (store: string, activation = "") => {
+  const value = `${store} ${activation}`.toLowerCase();
+  if (value.includes("epic")) return "Epic Games";
+  if (value.includes("steam")) return "Steam";
+  if (value.includes("gog")) return "GOG";
+  if (value.includes("prime gaming") || value.includes("amazon")) return "Prime Gaming";
+  if (value.includes("humble")) return "Humble Bundle";
+  if (value.includes("ubisoft")) return "Ubisoft Connect";
+  if (value.includes("indiegala")) return "IndieGala";
+  if (value.includes("itch.io")) return "itch.io";
+  if (value.includes("microsoft") || value.includes("xbox")) return "Xbox / Microsoft Store";
+  if (value.includes("electronic arts") || value.includes("ea app")) return "EA app";
+  return store;
+};
 const SUPABASE_CRON_TOKEN_HASH = "35e456a451c9eb4fdf053c774d194a9261948f7bf1e5db1c9c6eb372320f6079";
 const validSupabaseCronToken = (value: string | null) => {
   if (!value) return false;
@@ -111,17 +126,19 @@ async function synchronize(request: NextRequest) {
   const secret = process.env.SYNC_SECRET;
   if (!url || !key || !secret) return Response.json({ error: "Configuração incompleta" }, { status: 503 });
 
-  const [gamerPowerResult, epicResult] = await Promise.allSettled([
+  const [gamerPowerResult, epicResult, dealsResult] = await Promise.allSettled([
     fetch("https://www.gamerpower.com/api/filter?platform=pc&type=game", { headers: { accept: "application/json" }, cache: "no-store" }).then(async (response) => {
       if (!response.ok) throw new Error(`GamerPower respondeu ${response.status}`);
       return response.json() as Promise<Giveaway[]>;
     }),
     fetchEpicOffers(),
+    getMultiStoreDeals(),
   ]);
-  if (gamerPowerResult.status === "rejected" && epicResult.status === "rejected") throw new Error("Todas as fontes de jogos grátis falharam");
+  if (gamerPowerResult.status === "rejected" && epicResult.status === "rejected" && dealsResult.status === "rejected") throw new Error("Todas as fontes de jogos grátis falharam");
 
   const offers = gamerPowerResult.status === "fulfilled" ? gamerPowerResult.value : [];
   const epicOffers = epicResult.status === "fulfilled" ? epicResult.value : [];
+  const freeDeals = dealsResult.status === "fulfilled" ? dealsResult.value.filter((deal) => deal.salePrice === 0 && deal.originalPrice > 0) : [];
   const eligible = offers.filter((item) => item.type === "Game" && item.worth !== "N/A" && Number(item.worth.replace(/[^0-9.]/g, "")) > 0);
   const epicTitleKeys = new Set(epicOffers.map(({ offer }) => titleKey(offer.title)));
   const secondaryOffers = eligible.filter((item) => !(item.platforms.includes("Epic") && epicTitleKeys.has(titleKey(item.title))));
@@ -133,6 +150,17 @@ async function synchronize(request: NextRequest) {
   if (activeEpicError) throw activeEpicError;
   const existingEpicSource = new Map((activeEpicRows || []).map((row) => [titleKey(row.title), row.source_id]));
   const matchedGamerPowerSource = new Map(eligible.filter((item) => item.platforms.includes("Epic")).map((item) => [titleKey(item.title), `gamerpower:${item.id}`]));
+
+  const primaryOfferKeys = new Set([
+    ...epicOffers.map(({ offer }) => `${titleKey(offer.title)}:epic-games`),
+    ...secondaryOffers.map((item) => `${titleKey(item.title)}:${slugify(storeName(item.platforms))}`),
+  ]);
+  const uniqueFreeDeals = freeDeals.filter((deal) => {
+    const key = `${titleKey(deal.title)}:${slugify(canonicalStore(deal.store, deal.activation))}`;
+    if (primaryOfferKeys.has(key)) return false;
+    primaryOfferKeys.add(key);
+    return true;
+  });
 
   const rows: GameRow[] = [
     ...epicOffers.map(({ offer, promotion, originalPrice, image, claimUrl }) => ({
@@ -165,6 +193,21 @@ async function synchronize(request: NextRequest) {
       featured: false,
       is_active: true,
     })),
+    ...uniqueFreeDeals.map((deal) => ({
+      source_id: `itad:${deal.catalogId}:${slugify(canonicalStore(deal.store, deal.activation))}`,
+      slug: `${slugify(deal.title)}-${slugify(deal.catalogId)}-${slugify(canonicalStore(deal.store, deal.activation))}`,
+      title: deal.title,
+      store: canonicalStore(deal.store, deal.activation),
+      description: `Jogo pago disponível gratuitamente por tempo limitado na ${canonicalStore(deal.store, deal.activation)}.`,
+      image_url: deal.imageUrl,
+      claim_url: deal.url,
+      original_price: deal.originalPrice,
+      starts_at: new Date().toISOString(),
+      ends_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      genres: ["Jogo grátis"],
+      featured: ["Steam", "Epic Games"].includes(canonicalStore(deal.store, deal.activation)),
+      is_active: true,
+    })),
   ];
 
   const { data: stored, error } = await db.rpc("sync_free_games", { payload: rows, sync_token: cronToken || secret });
@@ -185,7 +228,7 @@ async function synchronize(request: NextRequest) {
   }
 
   revalidatePath("/");
-  const result = { ok: true, checked: offers.length, eligible: rows.length, epicDirect: epicOffers.length, notificationCandidates: fresh.length, notifications: sent, notificationFailures: failed, sources: { gamerPower: gamerPowerResult.status, epic: epicResult.status }, durationMs: Date.now() - startedAt };
+  const result = { ok: true, checked: offers.length, eligible: rows.length, epicDirect: epicOffers.length, freeDeals: uniqueFreeDeals.length, notificationCandidates: fresh.length, notifications: sent, notificationFailures: failed, sources: { gamerPower: gamerPowerResult.status, epic: epicResult.status, deals: dealsResult.status }, durationMs: Date.now() - startedAt };
   console.info("free-games-sync", result);
   return Response.json(result);
 }
