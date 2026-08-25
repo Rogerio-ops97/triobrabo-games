@@ -238,9 +238,9 @@ export async function GET(request: NextRequest) {
   try {
     return await synchronize(request);
   } catch (error) {
-    console.error("free-games-sync-failed", error);
-    const detail = error instanceof Error ? error.message : (error as { message?: string })?.message || JSON.stringify(error);
-    return Response.json({ error: "Falha na sincronização", detail }, { status: 500 });
+    const errorId = crypto.randomUUID();
+    console.error("free-games-sync-failed", { errorId, error });
+    return Response.json({ error: "Falha na sincronização", errorId }, { status: 500 });
   }
 }
 

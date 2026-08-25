@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 type ItadSearchItem = { id: string; title: string; type: string; assets?: Partial<Record<"boxart" | "banner145" | "banner300" | "banner400" | "banner600", string>> };
 type ItadPrice = { id?: string; deals?: Array<{ price: { amount: number }; regular: { amount: number }; cut: number; platforms?: Array<{ name: string }> }> };
 
 export async function GET(request: NextRequest) {
+  const rate = await checkRateLimit(request, "catalog-search", 30, 60);
+  if (!rate.allowed) return rateLimitResponse(rate.retryAfter);
   const query = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   if (query.length < 2) return Response.json({ items: [] });
+  if (query.length > 80 || /[\u0000-\u001f\u007f]/.test(query)) {
+    return Response.json({ items: [], error: "invalid-query" }, { status: 400 });
+  }
   const key = process.env.ITAD_API_KEY;
   if (!key) return Response.json({ items: [], error: "catalog-unavailable" }, { status: 503 });
   try {
