@@ -57,6 +57,16 @@ revoke execute on function private.has_sync_secret() from public,anon,authentica
 revoke execute on function private.valid_sync_token(text) from public,anon,authenticated;
 revoke usage on schema private from anon,authenticated;
 
+-- The web app reaches these token-protected RPCs with the publishable (anon)
+-- key. Authenticated database users never need an additional execution path.
+revoke execute on function public.consume_api_rate_limit(text,text,integer,integer,text) from authenticated;
+revoke execute on function public.disable_push_target(uuid,text) from authenticated;
+revoke execute on function public.mark_game_notified(uuid,text) from authenticated;
+revoke execute on function public.push_targets_for_game(text,uuid,text) from authenticated;
+revoke execute on function public.record_push_delivery(uuid,uuid,text,text,text) from authenticated;
+revoke execute on function public.register_push_subscription(text,text,text,text[],text[],text,text,text) from authenticated;
+revoke execute on function public.sync_free_games(jsonb,text) from authenticated;
+
 select cron.unschedule(jobid)
 from cron.job
 where jobname='triobrabo-rate-limit-retention';
