@@ -22,6 +22,7 @@ function configure() {
 }
 
 const platformSlug = (store: string) => store.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const notificationTag = (title: string, store: string) => `${platformSlug(title.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, ""))}:${platformSlug(store)}`;
 type PushTarget = { id: string; endpoint: string; p256dh: string; auth: string };
 
 export async function sendPush(game: Game, cronToken = "") {
@@ -41,6 +42,7 @@ export async function sendPush(game: Game, cronToken = "") {
     body: `De ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(game.original_price)} por R$ 0 na ${game.store}.`,
     url: game.claim_url,
     gameId: game.id,
+    tag: notificationTag(game.title, game.store),
   });
 
   await Promise.all(targets.map(async (sub) => {

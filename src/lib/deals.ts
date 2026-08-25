@@ -10,6 +10,7 @@ export type Deal = {
   salePrice: number;
   discount: number;
   url: string;
+  relevance?: number;
 };
 type SteamSpecial = {
   id: number;
@@ -22,6 +23,13 @@ type SteamSpecial = {
 };
 const STEAM_SPECIALS =
   "https://store.steampowered.com/api/featuredcategories?cc=BR&l=brazilian";
+const normalizedTitle = (title: string) => title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
+const relevanceScore = (deal: Pick<Deal, "discount" | "originalPrice" | "salePrice" | "imageUrl">, featured = false) =>
+  (featured ? 10_000 : 0)
+  + Math.min(deal.originalPrice, 350) * 1.8
+  + Math.min(deal.discount, 95) * 5
+  - Math.min(deal.salePrice, 200) * 0.15
+  + (deal.imageUrl ? 25 : 0);
 export async function getBrazilianDeals(): Promise<Deal[]> {
   try {
     const response = await fetch(STEAM_SPECIALS, {
@@ -39,7 +47,8 @@ export async function getBrazilianDeals(): Promise<Deal[]> {
           item.original_price !== undefined &&
           (item.discount_percent ?? 0) > 0,
       )
-      .map((item) => ({
+      .map((item) => {
+        const deal = {
         id: `steam-${item.id}`,
         appId: item.id,
         catalogId: String(item.id),
@@ -51,7 +60,9 @@ export async function getBrazilianDeals(): Promise<Deal[]> {
         salePrice: (item.final_price ?? 0) / 100,
         discount: item.discount_percent ?? 0,
         url: `https://store.steampowered.com/app/${item.id}/?cc=BR&l=brazilian`,
-      }));
+        };
+        return { ...deal, relevance: relevanceScore(deal, true) };
+      });
     return Array.from(
       new Map(deals.map((deal) => [deal.id, deal])).values(),
     ).sort((a, b) => b.discount - a.discount);
@@ -80,18 +91,22 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
   const key = process.env.ITAD_API_KEY;
   if (!key) return getBrazilianDeals();
   try {
-    const response = await fetch("https://api.isthereanydeal.com/deals/v2", {
-      method: "POST",
-      headers: { "content-type": "application/json", "ITAD-API-Key": key },
-      body: JSON.stringify({ country: "BR", limit: 200, sort: "-cut", nondeals: false, mature: false }),
-      next: { revalidate: 900 },
-      signal: AbortSignal.timeout(10000),
-    });
+    const [response, steamFeatured] = await Promise.all([
+      fetch("https://api.isthereanydeal.com/deals/v2", {
+        method: "POST",
+        headers: { "content-type": "application/json", "ITAD-API-Key": key },
+        body: JSON.stringify({ country: "BR", limit: 200, sort: "-cut", nondeals: false, mature: false }),
+        next: { revalidate: 900 },
+        signal: AbortSignal.timeout(10000),
+      }),
+      getBrazilianDeals(),
+    ]);
     if (!response.ok) return getBrazilianDeals();
     const payload = (await response.json()) as { list?: ItadDealItem[] };
     const deals = (payload.list ?? [])
       .filter((item) => item.type === "game" && item.deal.cut > 0)
-      .map((item) => ({
+      .map((item) => {
+        const deal = {
         id: `${item.id}-${item.deal.shop.name}`,
         appId: 0,
         catalogId: item.id,
@@ -103,14 +118,25 @@ export async function getMultiStoreDeals(): Promise<Deal[]> {
         salePrice: item.deal.price.amount,
         discount: item.deal.cut,
         url: item.deal.url,
-      }));
+        };
+        return { ...deal, relevance: relevanceScore(deal) };
+      });
     const unique = new Map<string, Deal>();
-    for (const deal of deals) {
-      const key = deal.catalogId || deal.title.trim().toLocaleLowerCase("pt-BR");
-      const current = unique.get(key);
-      if (!current || deal.salePrice < current.salePrice) unique.set(key, deal);
+    for (const deal of [...steamFeatured, ...deals]) {
+      const titleKey = normalizedTitle(deal.title);
+      const current = unique.get(titleKey);
+      if (!current) {
+        unique.set(titleKey, deal);
+        continue;
+      }
+      const best = deal.salePrice < current.salePrice ? deal : current;
+      unique.set(titleKey, { ...best, relevance: Math.max(current.relevance ?? 0, deal.relevance ?? 0) });
     }
-    return Array.from(unique.values());
+    return Array.from(unique.values()).sort((a, b) =>
+      (b.relevance ?? 0) - (a.relevance ?? 0)
+      || b.discount - a.discount
+      || a.salePrice - b.salePrice,
+    );
   } catch {
     return getBrazilianDeals();
   }

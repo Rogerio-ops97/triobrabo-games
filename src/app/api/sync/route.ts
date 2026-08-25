@@ -41,6 +41,7 @@ type GameRow = Omit<Game, "id"> & { source_id: string; is_active: boolean };
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const gameTitle = (value: string) => value.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, "").trim();
 const titleKey = (value: string) => slugify(gameTitle(value));
+const uniqueByTitleAndStore = (offers: Giveaway[]) => Array.from(new Map(offers.map((item) => [`${titleKey(item.title)}:${slugify(storeName(item.platforms))}`, item])).values());
 const storeName = (platforms: string) => platforms.includes("Epic") ? "Epic Games" : platforms.includes("Steam") ? "Steam" : platforms.includes("GOG") ? "GOG" : platforms.includes("itch") ? "itch.io" : platforms.split(",")[0]?.trim() || "PC";
 const canonicalStore = (store: string, activation = "") => {
   const value = `${store} ${activation}`.toLowerCase();
@@ -141,14 +142,14 @@ async function synchronize(request: NextRequest) {
   const freeDeals = dealsResult.status === "fulfilled" ? dealsResult.value.filter((deal) => deal.salePrice === 0 && deal.originalPrice > 0) : [];
   const eligible = offers.filter((item) => item.type === "Game" && item.worth !== "N/A" && Number(item.worth.replace(/[^0-9.]/g, "")) > 0);
   const epicTitleKeys = new Set(epicOffers.map(({ offer }) => titleKey(offer.title)));
-  const secondaryOffers = eligible.filter((item) => !(item.platforms.includes("Epic") && epicTitleKeys.has(titleKey(item.title))));
+  const secondaryOffers = uniqueByTitleAndStore(eligible.filter((item) => !(item.platforms.includes("Epic") && epicTitleKeys.has(titleKey(item.title)))));
   const heroImages = await highResolutionSteamImages(secondaryOffers);
 
   const cronToken = request.headers.get("x-sync-cron-token") || "";
   const db = createClient(url, key, { global: { headers: { "x-sync-secret": secret, "x-sync-cron-token": cronToken } }, auth: { persistSession: false } });
-  const { data: activeEpicRows, error: activeEpicError } = await db.from("games").select("source_id,title").eq("store", "Epic Games").eq("is_active", true).gt("ends_at", new Date().toISOString());
-  if (activeEpicError) throw activeEpicError;
-  const existingEpicSource = new Map((activeEpicRows || []).map((row) => [titleKey(row.title), row.source_id]));
+  const { data: activeRows, error: activeRowsError } = await db.from("games").select("source_id,title,store").eq("is_active", true).gt("ends_at", new Date().toISOString());
+  if (activeRowsError) throw activeRowsError;
+  const existingSource = new Map((activeRows || []).map((row) => [`${titleKey(row.title)}:${slugify(row.store)}`, row.source_id]));
   const matchedGamerPowerSource = new Map(eligible.filter((item) => item.platforms.includes("Epic")).map((item) => [titleKey(item.title), `gamerpower:${item.id}`]));
 
   const primaryOfferKeys = new Set([
@@ -164,7 +165,7 @@ async function synchronize(request: NextRequest) {
 
   const rows: GameRow[] = [
     ...epicOffers.map(({ offer, promotion, originalPrice, image, claimUrl }) => ({
-      source_id: existingEpicSource.get(titleKey(offer.title)) || matchedGamerPowerSource.get(titleKey(offer.title)) || `epic:${offer.namespace || "catalog"}:${offer.id}`,
+      source_id: existingSource.get(`${titleKey(offer.title)}:epic-games`) || matchedGamerPowerSource.get(titleKey(offer.title)) || `epic:${offer.namespace || "catalog"}:${offer.id}`,
       slug: `${slugify(offer.title)}-${slugify(offer.id)}`,
       title: offer.title,
       store: "Epic Games",
@@ -179,7 +180,7 @@ async function synchronize(request: NextRequest) {
       is_active: true,
     })),
     ...secondaryOffers.map((item) => ({
-      source_id: `gamerpower:${item.id}`,
+      source_id: existingSource.get(`${titleKey(item.title)}:${slugify(storeName(item.platforms))}`) || `gamerpower:${item.id}`,
       slug: `${slugify(item.title)}-${item.id}`,
       title: item.title,
       store: storeName(item.platforms),
