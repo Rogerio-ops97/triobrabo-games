@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bookmark, Search } from "lucide-react";
+import { Bookmark, Search, Settings } from "lucide-react";
 import { AlertButton } from "./alert-button";
 
 export function SiteHeader({ saved = 0, onSaved }: { saved?: number; onSaved?: () => void }) {
@@ -19,6 +19,7 @@ export function SiteHeader({ saved = 0, onSaved }: { saved?: number; onSaved?: (
         <Link href="/plataformas">Plataformas</Link>
         <Link href="/como-usar">Como usar</Link>
         {onSaved ? <button onClick={onSaved}><Bookmark size={17} /> Salvos <b>{saved}</b></button> : null}
+        <button type="button" onClick={() => window.dispatchEvent(new Event("triobrabo:open-settings"))} aria-label="Abrir configurações" title="Configurações"><Settings size={18} /></button>
       </nav>
       <AlertButton />
     </header>

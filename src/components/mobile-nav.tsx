@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, Gamepad2, Menu, Search, Tag, X } from "lucide-react";
+import { Bookmark, Gamepad2, Menu, Search, Settings, Tag, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
@@ -34,6 +34,7 @@ export function MobileNav() {
             <Link href="/buscar" onClick={() => setOpen(false)}>Explorar catálogo</Link>
             <Link href="/plataformas" onClick={() => setOpen(false)}>Plataformas monitoradas</Link>
             <Link href="/como-usar" onClick={() => setOpen(false)}>Como instalar e usar</Link>
+            <button className="mobile-settings-link" onClick={() => { setOpen(false); window.dispatchEvent(new Event("triobrabo:open-settings")); }}><Settings size={18} /> Configurações</button>
           </section>
         </div>
       ) : null}

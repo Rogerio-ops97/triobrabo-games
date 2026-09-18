@@ -36,11 +36,12 @@ type EpicOffer = {
   };
 };
 
-type GameRow = Omit<Game, "id"> & { source_id: string; is_active: boolean };
+type GameRow = Omit<Game, "id"> & { source_id: string; notification_key: string; is_active: boolean };
 
 const slugify = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const gameTitle = (value: string) => value.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, "").trim();
 const titleKey = (value: string) => slugify(gameTitle(value));
+const notificationKey = (title: string, store: string) => `${titleKey(title)}:${slugify(store)}`;
 const uniqueByTitleAndStore = (offers: Giveaway[]) => Array.from(new Map(offers.map((item) => [`${titleKey(item.title)}:${slugify(storeName(item.platforms))}`, item])).values());
 const storeName = (platforms: string) => platforms.includes("Epic") ? "Epic Games" : platforms.includes("Steam") ? "Steam" : platforms.includes("GOG") ? "GOG" : platforms.includes("itch") ? "itch.io" : platforms.split(",")[0]?.trim() || "PC";
 const canonicalStore = (store: string, activation = "") => {
@@ -166,6 +167,7 @@ async function synchronize(request: NextRequest) {
   const rows: GameRow[] = [
     ...epicOffers.map(({ offer, promotion, originalPrice, image, claimUrl }) => ({
       source_id: existingSource.get(`${titleKey(offer.title)}:epic-games`) || matchedGamerPowerSource.get(titleKey(offer.title)) || `epic:${offer.namespace || "catalog"}:${offer.id}`,
+      notification_key: notificationKey(offer.title, "Epic Games"),
       slug: `${slugify(offer.title)}-${slugify(offer.id)}`,
       title: offer.title,
       store: "Epic Games",
@@ -181,6 +183,7 @@ async function synchronize(request: NextRequest) {
     })),
     ...secondaryOffers.map((item) => ({
       source_id: existingSource.get(`${titleKey(item.title)}:${slugify(storeName(item.platforms))}`) || `gamerpower:${item.id}`,
+      notification_key: notificationKey(item.title, storeName(item.platforms)),
       slug: `${slugify(item.title)}-${item.id}`,
       title: item.title,
       store: storeName(item.platforms),
@@ -196,6 +199,7 @@ async function synchronize(request: NextRequest) {
     })),
     ...uniqueFreeDeals.map((deal) => ({
       source_id: `itad:${deal.catalogId}:${slugify(canonicalStore(deal.store, deal.activation))}`,
+      notification_key: notificationKey(deal.title, canonicalStore(deal.store, deal.activation)),
       slug: `${slugify(deal.title)}-${slugify(deal.catalogId)}-${slugify(canonicalStore(deal.store, deal.activation))}`,
       title: deal.title,
       store: canonicalStore(deal.store, deal.activation),

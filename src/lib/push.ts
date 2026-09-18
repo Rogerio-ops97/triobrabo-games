@@ -23,6 +23,17 @@ function configure() {
 
 const platformSlug = (store: string) => store.toLowerCase().replace(/\s*\/\s*/g, "-").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const notificationTag = (title: string, store: string) => `${platformSlug(title.replace(/\s*\([^)]*\)\s*(?:Key\s+)?Giveaway.*$/i, ""))}:${platformSlug(store)}`;
+const storeAppUrl = (game: Game) => {
+  if (platformSlug(game.store) !== "steam") return null;
+  try {
+    const url = new URL(game.claim_url);
+    if (!/(^|\.)steampowered\.com$/i.test(url.hostname)) return null;
+    const appId = url.pathname.match(/\/app\/(\d+)/)?.[1];
+    return appId ? `steam://store/${appId}` : null;
+  } catch {
+    return null;
+  }
+};
 type PushTarget = { id: string; endpoint: string; p256dh: string; auth: string };
 
 export async function sendPush(game: Game, cronToken = "") {
@@ -41,6 +52,7 @@ export async function sendPush(game: Game, cronToken = "") {
     title: `🎁 ${game.title} está grátis!`,
     body: `De ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(game.original_price)} por R$ 0 na ${game.store}.`,
     url: game.claim_url,
+    appUrl: storeAppUrl(game),
     gameId: game.id,
     tag: notificationTag(game.title, game.store),
   });
